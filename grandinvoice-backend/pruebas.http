@@ -1,0 +1,78 @@
+POST http://localhost:5000/api/usuarios/registro
+Content-Type: application/json
+
+{
+  "nombre": "Danilo",
+  "email": "admin@grandinvoice.com",
+  "password": "MiPasswordSeguro123"
+}
+
+### Login de prueba
+POST http://localhost:5000/api/usuarios/login
+Content-Type: application/json
+
+{
+  "email": "admin@grandinvoice.com",
+  "password": "MiPasswordSeguro123"
+}
+
+### Prueba de Ruta Privada
+GET http://localhost:5000/api/sistema/privado
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMxMjk4NDcsImV4cCI6MTc5MzE1ODY0N30.Pt6cWksqeZOwxx2vTuw_YzyHJahNcSEceuKlKzRNzjU
+
+### Crear un nuevo Cliente
+POST http://localhost:5000/api/clientes
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMxMzEwMzIsImV4cCI6MTc5MzE1OTgzMn0.k25YcjoXDu4l5y1bmQZFK8j0vkjo4Zr-d3nEAdwFLQ4
+
+{
+  "nombre": "Empresa de Transportes XYZ",
+  "email": "pagos@transportesxyz.com",
+  "telefono": "+1 555-0198",
+  "direccion": "123 Main St, Suite 400"
+}
+
+### Obtener lista de Clientes
+GET http://localhost:5000/api/clientes
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMxMzE0MzIsImV4cCI6MTc5MzE2MDIzMn0.mHKAgHD8VnaXnU7-1KWTlmH9RxLaaAGAzrxRwvxBC1o
+
+
+### Crear una nueva Factura
+POST http://localhost:5000/api/facturas
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMxMzE0MzIsImV4cCI6MTc5MzE2MDIzMn0.mHKAgHD8VnaXnU7-1KWTlmH9RxLaaAGAzrxRwvxBC1o
+
+{
+  "cliente_id": 1,
+  "numero_factura": "INV-0001",
+  "monto": 1500.50,
+  "fecha_emision": "2026-10-27"
+}
+
+### Obtener lista de Facturas
+GET http://localhost:5000/api/facturas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMyMDE5NzYsImV4cCI6MTc5MzIzMDc3Nn0.YcdnwjwWXUF24WtIw6JJ-Y7280UV3xIh1qzsOldnm6Y
+
+### Marcar Factura como Pagada
+PUT http://localhost:5000/api/facturas/1/estado
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMyMDE5NzYsImV4cCI6MTc5MzIzMDc3Nn0.YcdnwjwWXUF24WtIw6JJ-Y7280UV3xIh1qzsOldnm6Y
+
+{
+  "estado": "pagada"
+}
+
+### Agregar Servicio a Factura
+POST http://localhost:5000/api/facturas/1/detalles
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMyMDE5NzYsImV4cCI6MTc5MzIzMDc3Nn0.YcdnwjwWXUF24WtIw6JJ-Y7280UV3xIh1qzsOldnm6Y
+
+{
+  "descripcion": "Desarrollo de Landing Page corporativa y Panel de Control",
+  "cantidad": 1,
+  "precio_unitario": 850.00
+}
+
+### Obtener Factura Individual con Detalles
+GET http://localhost:5000/api/facturas/1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiYWRtaW4iLCJpYXQiOjE3OTMyMDE5NzYsImV4cCI6MTc5MzIzMDc3Nn0.YcdnwjwWXUF24WtIw6JJ-Y7280UV3xIh1qzsOldnm6Y
