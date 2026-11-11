@@ -114,6 +114,20 @@ export default function Dashboard({ onLogout }) {
             🧾 Emitir Factura
           </button>
 
+<button 
+  onClick={() => navigate('/facturas/historial')}
+  style={{ background: '#34495e', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(52, 73, 94, 0.3)' }}
+>
+  📊 Historial Finanzas
+</button>
+
+<button 
+  onClick={() => navigate('/plantillas/constructor')}
+  style={{ background: '#34495e', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(52, 73, 94, 0.3)' }}
+>
+  🎨 Diseño Visual
+</button>
+
           <button 
             onClick={onLogout}
             style={{ background: '#e74c3c', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(231, 76, 60, 0.3)' }}

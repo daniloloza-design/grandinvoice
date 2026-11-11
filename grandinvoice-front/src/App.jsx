@@ -3,7 +3,9 @@ import Login from './Login';
 import Dashboard from './Dashboard';
 import NuevoCliente from './NuevoCliente';
 import NuevaFactura from './NuevaFactura';
-import Productos from './Productos'; // <-- 1. Importamos el nuevo archivo aquí
+import Productos from './Productos';
+import HistorialFacturas from './HistorialFacturas';
+import ConstructorVisual from './ConstructorVisual'; // <-- 1. Importamos el nuevo archivo aquí
 
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -43,11 +45,21 @@ export default function App() {
         </RutaProtegida>
       } />
       
+      {/* 3. Ruta de Nueva Factura independiente */}
       <Route path="/facturas/nueva" element={
         <RutaProtegida>
           <NuevaFactura />
         </RutaProtegida>
       } />
+
+      {/* 4. Ruta de Historial Financiero independiente */}
+      <Route path="/plantillas/constructor" element={<RutaProtegida><ConstructorVisual /></RutaProtegida>} />
+      <Route path="/facturas/historial" element={
+        <RutaProtegida>
+          <HistorialFacturas />
+        </RutaProtegida>
+      } />
+
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

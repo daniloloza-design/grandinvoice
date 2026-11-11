@@ -40,6 +40,7 @@ app.get('/api/status', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+
 // --- MIDDLEWARE: Candado de Seguridad (Verificar JWT) ---
 const verificarToken = (req, res, next) => {
     const authHeader = req.header('Authorization');
@@ -56,6 +57,33 @@ const verificarToken = (req, res, next) => {
         res.status(401).json({ status: 'error', message: 'Token inválido o expirado.' });
     }
 };
+
+// ==========================================
+// RUTAS DE PLANTILLAS VISUALES
+// ==========================================
+app.post('/api/plantillas', verificarToken, async (req, res) => {
+  const { configuracion } = req.body;
+  const usuario_id = req.usuario.id; // Sacamos el ID del token de seguridad
+
+  try {
+    // Si ya existe la actualiza, si no, la crea (magia de MySQL)
+    const query = `
+      INSERT INTO plantillas (usuario_id, configuracion) 
+      VALUES (?, ?) 
+      ON DUPLICATE KEY UPDATE configuracion = ?
+    `;
+    
+    // Convertimos el arreglo JSON a texto plano para guardarlo seguro
+    const configTexto = JSON.stringify(configuracion);
+    
+    await pool.query(query, [usuario_id, configTexto, configTexto]);
+    
+    res.json({ status: 'success', message: 'Plantilla guardada correctamente' });
+  } catch (error) {
+    console.error('Error al guardar plantilla:', error);
+    res.status(500).json({ status: 'error', message: 'Error interno del servidor' });
+  }
+});
 
 // --- RUTA PROTEGIDA (Solo para usuarios logeados) ---
 app.get('/api/sistema/privado', verificarToken, (req, res) => {
@@ -175,6 +203,24 @@ app.get('/api/clientes', verificarToken, async (req, res) => {
         console.error('Error al obtener clientes:', error);
         res.status(500).json({ status: 'error', message: 'Error interno al cargar los clientes' });
     }
+});
+
+app.get('/api/plantillas', verificarToken, async (req, res) => {
+  const usuario_id = req.usuario.id; 
+  try {
+    const [rows] = await pool.query('SELECT configuracion FROM plantillas WHERE usuario_id = ?', [usuario_id]);
+    
+    if (rows.length > 0) {
+      // Tomamos el texto plano de MySQL y lo revivimos a formato JSON para React
+      res.json({ status: 'success', data: JSON.parse(rows[0].configuracion) });
+    } else {
+      // Si el cliente es nuevo y no ha guardado nada aún
+      res.json({ status: 'empty' });
+    }
+  } catch (error) {
+    console.error('Error al cargar plantilla:', error);
+    res.status(500).json({ status: 'error', message: 'Error al cargar diseño' });
+  }
 });
 
 // --- RUTA: Actualizar un Cliente (Protegida) ---
