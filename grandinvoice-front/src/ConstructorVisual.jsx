@@ -9,6 +9,38 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+const ECOSISTEMAS = {
+  transporte: [
+    { id: 'eco-t-1', tipo: 'cabecera', titulo: '🚚 Logo y Datos de la Flota' },
+    { id: 'eco-t-2', tipo: 'cliente', titulo: '🏢 Datos del Remitente / Consignatario' },
+    { id: 'eco-t-3', tipo: 'texto', titulo: '📍 Ruta y Detalles del Viaje (Origen - Destino)' },
+    { id: 'eco-t-4', tipo: 'tabla', titulo: '📦 Detalle de Carga y Fletes' },
+    { id: 'eco-t-5', tipo: 'totales', titulo: '💰 Subtotal y Total' },
+    { id: 'eco-t-6', tipo: 'terminos', titulo: '⚠️ Condiciones de Carga y Seguro' }
+  ],
+  medico: [
+    { id: 'eco-m-1', tipo: 'cabecera', titulo: '⚕️ Clínica / Doctor (Cabecera)' },
+    { id: 'eco-m-2', tipo: 'cliente', titulo: '👤 Datos del Paciente' },
+    { id: 'eco-m-3', tipo: 'tabla', titulo: '🩺 Procedimientos y Consultas' },
+    { id: 'eco-m-4', tipo: 'totales', titulo: '💰 Total a Pagar' },
+    { id: 'eco-m-5', tipo: 'firma', titulo: '✍️ Firma y Sello Médico' }
+  ],
+  agencia: [
+    { id: 'eco-a-1', tipo: 'cabecera', titulo: '🎨 Logo de la Agencia' },
+    { id: 'eco-a-2', tipo: 'cliente', titulo: '💼 Datos del Cliente / Marca' },
+    { id: 'eco-a-3', tipo: 'texto', titulo: '🎯 Objetivo de la Campaña / Hitos' },
+    { id: 'eco-a-4', tipo: 'tabla', titulo: '📈 Servicios y Entregables' },
+    { id: 'eco-a-5', tipo: 'totales', titulo: '💰 Inversión Total' },
+    { id: 'eco-a-6', tipo: 'terminos', titulo: '⚠️ Términos de Propiedad Intelectual' }
+  ],
+  tienda: [
+    { id: 'eco-s-1', tipo: 'cabecera', titulo: '🏪 Logo del Local' },
+    { id: 'eco-s-2', tipo: 'cliente', titulo: '👤 Cliente' },
+    { id: 'eco-s-3', tipo: 'tabla', titulo: '🛍️ Lista de Artículos' },
+    { id: 'eco-s-4', tipo: 'totales', titulo: '💰 Total' },
+    { id: 'eco-s-5', tipo: 'terminos', titulo: '⚠️ Política de Devoluciones (30 días)' }
+  ]
+};
 
 function BloqueSortable({ id, titulo, alSeleccionar, estaActivo }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -47,6 +79,13 @@ export default function ConstructorVisual() {
     { id: 'mod-4', tipo: 'totales', titulo: '💰 Subtotal y Total' }
   ]);
   
+  const [mostrarModalEcosistemas, setMostrarModalEcosistemas] = useState(false);
+
+  const cargarEcosistema = (claveIndustria) => {
+    // Reemplaza todo el lienzo con la configuración prefabricada
+    setElementosLienzo(ECOSISTEMAS[claveIndustria]);
+    setMostrarModalEcosistemas(false);
+  };
   const [idActivo, setIdActivo] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -147,6 +186,28 @@ export default function ConstructorVisual() {
         >
           {guardando ? 'Guardando... ⏳' : '💾 Guardar Plantilla'}
         </button>
+
+        {/* BOTÓN DE ECOSISTEMAS PREDISEÑADOS */}
+        <button 
+          onClick={() => setMostrarModalEcosistemas(!mostrarModalEcosistemas)}
+          style={{ background: '#f39c12', color: '#fff', border: 'none', padding: '1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '2rem', boxShadow: '0 4px 10px rgba(243, 156, 18, 0.3)' }}
+        >
+          🚀 Cargar Ecosistemas
+        </button>
+
+        {/* SUBMENÚ DESPLEGABLE DE INDUSTRIAS */}
+        {mostrarModalEcosistemas && (
+          <div style={{ background: '#1abc9c', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '0.9rem' }}>Elige tu Industria:</h4>
+            
+            <div onClick={() => cargarEcosistema('transporte')} style={{ fontSize: '0.85rem', padding: '8px', background: 'rgba(0,0,0,0.1)', marginBottom: '5px', borderRadius: '4px', cursor: 'pointer' }}>🚛 Logística y Transporte</div>
+            <div onClick={() => cargarEcosistema('medico')} style={{ fontSize: '0.85rem', padding: '8px', background: 'rgba(0,0,0,0.1)', marginBottom: '5px', borderRadius: '4px', cursor: 'pointer' }}>🩺 Sector Médico</div>
+            <div onClick={() => cargarEcosistema('agencia')} style={{ fontSize: '0.85rem', padding: '8px', background: 'rgba(0,0,0,0.1)', marginBottom: '5px', borderRadius: '4px', cursor: 'pointer' }}>🎨 Agencia Creativa</div>
+            <div onClick={() => cargarEcosistema('tienda')} style={{ fontSize: '0.85rem', padding: '8px', background: 'rgba(0,0,0,0.1)', marginBottom: '5px', borderRadius: '4px', cursor: 'pointer' }}>🏪 Tienda Retail</div>
+            
+            <div onClick={() => { setElementosLienzo([]); setMostrarModalEcosistemas(false); }} style={{ fontSize: '0.85rem', padding: '8px', background: '#e74c3c', marginTop: '15px', borderRadius: '4px', cursor: 'pointer', textAlign: 'center', fontWeight: 'bold' }}>✨ Lienzo en Blanco (DIY)</div>
+          </div>
+        )}
 
         <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Herramientas</h3>
         

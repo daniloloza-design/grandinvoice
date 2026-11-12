@@ -5,7 +5,9 @@ import NuevoCliente from './NuevoCliente';
 import NuevaFactura from './NuevaFactura';
 import Productos from './Productos';
 import HistorialFacturas from './HistorialFacturas';
-import ConstructorVisual from './ConstructorVisual'; // <-- 1. Importamos el nuevo archivo aquí
+import ConstructorVisual from './ConstructorVisual';
+import VistaPreviaFactura from './VistaPreviaFactura'; // <-- ¡Esta es la línea que faltaba!
+import React from 'react';
 
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -38,28 +40,36 @@ export default function App() {
         </RutaProtegida>
       } />
 
-      {/* 2. Agregamos la ruta protegida de los productos */}
       <Route path="/productos" element={
         <RutaProtegida>
           <Productos onLogout={handleLogout} />
         </RutaProtegida>
       } />
       
-      {/* 3. Ruta de Nueva Factura independiente */}
       <Route path="/facturas/nueva" element={
         <RutaProtegida>
           <NuevaFactura />
         </RutaProtegida>
       } />
 
-      {/* 4. Ruta de Historial Financiero independiente */}
-      <Route path="/plantillas/constructor" element={<RutaProtegida><ConstructorVisual /></RutaProtegida>} />
+      <Route path="/plantillas/constructor" element={
+        <RutaProtegida>
+          <ConstructorVisual />
+        </RutaProtegida>
+      } />
+      
       <Route path="/facturas/historial" element={
         <RutaProtegida>
           <HistorialFacturas />
         </RutaProtegida>
       } />
 
+      {/* RUTA PARA EL PDF */}
+      <Route path="/facturas/:id/imprimir" element={
+        <RutaProtegida>
+          <VistaPreviaFactura />
+        </RutaProtegida>
+      } />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
