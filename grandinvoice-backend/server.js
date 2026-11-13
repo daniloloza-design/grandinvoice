@@ -422,15 +422,34 @@ app.get('/api/facturas/:id', verificarToken, async (req, res) => {
 
 // --- MÓDULO DE PRODUCTOS ---
 
-// Obtener todos los productos (Protegida)
+// 1. LEER PRODUCTOS (Asegúrate de que el SELECT incluye 'stock')
 app.get('/api/productos', verificarToken, async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM productos ORDER BY id DESC');
-        res.json({ status: 'success', data: rows });
-    } catch (err) {
-        console.error("🔥 Error GET productos:", err);
-        res.status(500).json({ status: 'error', message: 'Error al obtener productos' });
-    }
+  const usuario_id = req.usuario.id;
+  try {
+    const [rows] = await pool.query('SELECT id, codigo, nombre, precio, stock FROM productos WHERE usuario_id = ?', [usuario_id]);
+    res.json({ status: 'success', data: rows });
+  } catch (error) {
+    console.error('Error GET productos:', error);
+    res.status(500).json({ status: 'error', message: 'Error al obtener productos' });
+  }
+});
+
+// 2. NUEVA RUTA PARA EDITAR (PUT)
+app.put('/api/productos/:id', verificarToken, async (req, res) => {
+  const { codigo, nombre, precio, stock } = req.body;
+  const { id } = req.params;
+  const usuario_id = req.usuario.id;
+  
+  try {
+    await pool.query(
+      'UPDATE productos SET codigo = ?, nombre = ?, precio = ?, stock = ? WHERE id = ? AND usuario_id = ?',
+      [codigo, nombre, precio, stock || 0, id, usuario_id]
+    );
+    res.json({ status: 'success', message: 'Producto actualizado' });
+  } catch (err) {
+    console.error('Error PUT productos:', err);
+    res.status(500).json({ status: 'error', message: 'Error al actualizar el producto' });
+  }
 });
 
 // Crear un nuevo producto/servicio (Protegida)
