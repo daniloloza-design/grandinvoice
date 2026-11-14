@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 export default function HistorialFacturas() {
   const [facturas, setFacturas] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [filtroEstado, setFiltroEstado] = useState('TODAS');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -13,7 +14,6 @@ export default function HistorialFacturas() {
   const cargarFacturas = async () => {
     try {
       const token = localStorage.getItem('token');
-      // Asumimos que esta ruta está en tu server.js para traer facturas con el nombre del cliente
       const respuesta = await fetch('http://localhost:5000/api/facturas', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -30,10 +30,10 @@ export default function HistorialFacturas() {
   };
 
   const alternarEstado = async (id, estadoActual) => {
-    const nuevoEstado = estadoActual === 'Pendiente' ? 'Pagada' : 'Pendiente';
+    const esPagada = (estadoActual || '').toLowerCase() === 'pagada';
+    const nuevoEstado = esPagada ? 'pendiente' : 'pagada';
     try {
       const token = localStorage.getItem('token');
-      // Ruta para actualizar solo el estado de la factura
       const respuesta = await fetch(`http://localhost:5000/api/facturas/${id}/estado`, {
         method: 'PUT',
         headers: { 
@@ -45,7 +45,7 @@ export default function HistorialFacturas() {
 
       const data = await respuesta.json();
       if (respuesta.ok && data.status === 'success') {
-        cargarFacturas(); // Recargar para ver el cambio de color
+        cargarFacturas();
       } else {
         alert('Error al actualizar estado: ' + data.message);
       }
@@ -55,9 +55,22 @@ export default function HistorialFacturas() {
     }
   };
 
-  // Cálculos rápidos para tus finanzas
-  const totalCobrado = facturas.filter(f => f.estado === 'Pagada').reduce((acc, f) => acc + parseFloat(f.monto), 0);
-  const totalPendiente = facturas.filter(f => f.estado === 'Pendiente').reduce((acc, f) => acc + parseFloat(f.monto), 0);
+  // Filtrar facturas según la pestaña activa
+  const facturasFiltradas = facturas.filter((f) => {
+    const est = (f.estado || '').toLowerCase();
+    if (filtroEstado === 'PENDIENTE') return est === 'pendiente';
+    if (filtroEstado === 'PAGADA') return est === 'pagada';
+    return true;
+  });
+
+  // Cálculos financieros
+  const totalCobrado = facturas
+    .filter(f => (f.estado || '').toLowerCase() === 'pagada')
+    .reduce((acc, f) => acc + parseFloat(f.monto || 0), 0);
+
+  const totalPendiente = facturas
+    .filter(f => (f.estado || '').toLowerCase() === 'pendiente')
+    .reduce((acc, f) => acc + parseFloat(f.monto || 0), 0);
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
@@ -83,6 +96,28 @@ export default function HistorialFacturas() {
         </div>
       </div>
 
+      {/* Pestañas de Filtro (Abiertas vs Cerradas) */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <button
+          onClick={() => setFiltroEstado('TODAS')}
+          style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: filtroEstado === 'TODAS' ? '#2c3e50' : '#ecf0f1', color: filtroEstado === 'TODAS' ? '#fff' : '#7f8c8d' }}
+        >
+          Todas ({facturas.length})
+        </button>
+        <button
+          onClick={() => setFiltroEstado('PENDIENTE')}
+          style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: filtroEstado === 'PENDIENTE' ? '#e67e22' : '#ecf0f1', color: filtroEstado === 'PENDIENTE' ? '#fff' : '#7f8c8d' }}
+        >
+          Abiertas / Pendientes ({facturas.filter(f => (f.estado || '').toLowerCase() === 'pendiente').length})
+        </button>
+        <button
+          onClick={() => setFiltroEstado('PAGADA')}
+          style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', background: filtroEstado === 'PAGADA' ? '#27ae60' : '#ecf0f1', color: filtroEstado === 'PAGADA' ? '#fff' : '#7f8c8d' }}
+        >
+          Cerradas / Pagadas ({facturas.filter(f => (f.estado || '').toLowerCase() === 'pagada').length})
+        </button>
+      </div>
+
       {/* Tabla de Facturas */}
       <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 8px 20px rgba(0,0,0,0.05)', overflow: 'hidden', border: '1px solid #ecf0f1' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -90,46 +125,59 @@ export default function HistorialFacturas() {
             <tr>
               <th style={{ padding: '1rem', textAlign: 'left' }}>No. Factura</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Fecha</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Cliente (ID)</th>
+              <th style={{ padding: '1rem', textAlign: 'left' }}>Cliente</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Monto</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Estado</th>
-              <th style={{ padding: '1rem', textAlign: 'center' }}>Acción</th>
+              <th style={{ padding: '1rem', textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {cargando ? (
               <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>Cargando datos... ⏳</td></tr>
-            ) : facturas.length === 0 ? (
-              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#7f8c8d' }}>No hay facturas emitidas aún.</td></tr>
+            ) : facturasFiltradas.length === 0 ? (
+              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#7f8c8d' }}>No hay facturas registradas en esta categoría.</td></tr>
             ) : (
-              facturas.map((fac) => (
-                <tr key={fac.id} style={{ borderBottom: '1px solid #ecf0f1' }}>
-                  <td style={{ padding: '1rem', fontWeight: 'bold', color: '#34495e' }}>{fac.numero_factura}</td>
-                  <td style={{ padding: '1rem' }}>{new Date(fac.fecha_emision).toLocaleDateString()}</td>
-                  <td style={{ padding: '1rem' }}>Cliente #{fac.cliente_id}</td>
-                  <td style={{ padding: '1rem', fontWeight: 'bold' }}>${parseFloat(fac.monto).toFixed(2)}</td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <span style={{ 
-                      background: fac.estado === 'Pagada' ? '#2ecc71' : '#f1c40f', 
-                      color: fac.estado === 'Pagada' ? '#fff' : '#000', 
-                      padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' 
-                    }}>
-                      {fac.estado}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <button 
-                      onClick={() => alternarEstado(fac.id, fac.estado)}
-                      style={{ 
-                        background: fac.estado === 'Pendiente' ? '#27ae60' : '#e74c3c', 
-                        color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' 
-                      }}
-                    >
-                      {fac.estado === 'Pendiente' ? 'Marcar Pagada ✔️' : 'Marcar Pendiente ↩️'}
-                    </button>
-                  </td>
-                </tr>
-              ))
+              facturasFiltradas.map((fac) => {
+                const esPagada = (fac.estado || '').toLowerCase() === 'pagada';
+                return (
+                  <tr key={fac.id} style={{ borderBottom: '1px solid #ecf0f1' }}>
+                    <td style={{ padding: '1rem', fontWeight: 'bold', color: '#34495e' }}>{fac.numero_factura}</td>
+                    <td style={{ padding: '1rem' }}>{new Date(fac.fecha_emision || fac.fecha_creacion).toLocaleDateString()}</td>
+                    <td style={{ padding: '1rem', fontWeight: '500' }}>{fac.cliente_nombre || `Cliente #${fac.cliente_id}`}</td>
+                    <td style={{ padding: '1rem', fontWeight: 'bold' }}>${parseFloat(fac.monto).toFixed(2)}</td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <span style={{ 
+                        background: esPagada ? '#2ecc71' : '#f1c40f', 
+                        color: esPagada ? '#fff' : '#000', 
+                        padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' 
+                      }}>
+                        {esPagada ? 'Pagada' : 'Pendiente'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button 
+                          onClick={() => navigate(`/factura/${fac.id}`)}
+                          style={{ 
+                            background: '#3498db', color: '#fff', border: 'none', padding: '0.5rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' 
+                          }}
+                        >
+                          👁️ Ver
+                        </button>
+                        <button 
+                          onClick={() => alternarEstado(fac.id, fac.estado)}
+                          style={{ 
+                            background: esPagada ? '#e74c3c' : '#27ae60', 
+                            color: '#fff', border: 'none', padding: '0.5rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' 
+                          }}
+                        >
+                          {esPagada ? 'Marcar Pendiente ↩️' : 'Marcar Pagada ✔️'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

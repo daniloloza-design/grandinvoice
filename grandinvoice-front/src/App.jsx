@@ -6,8 +6,9 @@ import NuevaFactura from './NuevaFactura';
 import Productos from './Productos';
 import HistorialFacturas from './HistorialFacturas';
 import ConstructorVisual from './ConstructorVisual';
-import VistaPreviaFactura from './VistaPreviaFactura'; // <-- ¡Esta es la línea que faltaba!
-import React from 'react';
+import VistaPreviaFactura from './VistaPreviaFactura';
+import DetalleFactura from './DetalleFactura';
+import FacturaPublica from './FacturaPublica';
 
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -18,7 +19,6 @@ const RutaProtegida = ({ children }) => {
 };
 
 export default function App() {
-  // Función de salida utilizando recarga limpia del navegador
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/login';
@@ -64,12 +64,21 @@ export default function App() {
         </RutaProtegida>
       } />
 
-      {/* RUTA PARA EL PDF */}
+      {/* RUTA PARA VER DETALLE Y COBRAR FACTURA */}
+      <Route path="/factura/:id" element={
+        <RutaProtegida>
+          <DetalleFactura />
+        </RutaProtegida>
+      } />
+
+      {/* RUTA PARA VISTA PREVIA / PDF */}
       <Route path="/facturas/:id/imprimir" element={
         <RutaProtegida>
           <VistaPreviaFactura />
         </RutaProtegida>
       } />
+
+      <Route path="/ver-factura/:id" element={<FacturaPublica />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

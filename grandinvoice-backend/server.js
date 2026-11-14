@@ -479,6 +479,45 @@ app.delete('/api/productos/:id', verificarToken, async (req, res) => {
     }
 });
 
+// --- RUTA PÚBLICA BLINDADA: Acepta ID o Número de Factura ---
+app.get('/api/facturas/publica/:param', async (req, res) => {
+    try {
+        const { param } = req.params;
+
+        // Buscamos si coincide con f.id O con f.numero_factura
+        const [facturas] = await pool.query(
+            `SELECT f.*, c.nombre AS cliente_nombre, c.email AS cliente_email, 
+                    c.telefono AS cliente_telefono, c.direccion AS cliente_direccion
+             FROM facturas f
+             LEFT JOIN clientes c ON f.cliente_id = c.id
+             WHERE f.id = ? OR f.numero_factura = ?`,
+            [param, param]
+        );
+
+        if (facturas.length === 0) {
+            return res.status(404).json({ status: 'error', message: 'Factura no encontrada' });
+        }
+
+        const factura = facturas[0];
+
+        // Traemos los detalles utilizando el ID real recuperado
+        const [detalles] = await pool.query(
+            'SELECT * FROM detalles_factura WHERE factura_id = ?',
+            [factura.id]
+        );
+
+        factura.detalles = detalles;
+
+        res.json({
+            status: 'success',
+            data: factura
+        });
+    } catch (error) {
+        console.error('Error al obtener factura pública:', error);
+        res.status(500).json({ status: 'error', message: 'Error en el servidor' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
 });
