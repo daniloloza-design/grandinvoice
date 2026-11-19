@@ -38,9 +38,6 @@ app.get('/api/status', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 5000;
-
-
 // --- MIDDLEWARE: Candado de Seguridad (Verificar JWT) ---
 const verificarToken = (req, res, next) => {
     const authHeader = req.header('Authorization');
@@ -59,23 +56,66 @@ const verificarToken = (req, res, next) => {
 };
 
 // ==========================================
+// RUTA DE REGISTRO MULTIUSUARIO (NUEVA)
+// ==========================================
+app.post('/api/auth/registro', async (req, res) => {
+  const { nombre_empresa, email, password, tipo_empresa } = req.body;
+
+  if (!nombre_empresa || !email || !password) {
+    return res.status(400).json({ mensaje: 'Todos los campos obligatorios deben ser completados.' });
+  }
+
+  try {
+    // 1. Verificar si el correo ya existe
+    const [existente] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [email]);
+    if (existente.length > 0) {
+      return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado.' });
+    }
+
+    // 2. Encriptar contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 3. Insertar nuevo usuario en la base de datos de Banahosting
+    const [resultado] = await pool.query(
+      'INSERT INTO usuarios (nombre_empresa, email, password, tipo_empresa) VALUES (?, ?, ?, ?)',
+      [nombre_empresa, email, hashedPassword, tipo_empresa || 'general']
+    );
+
+    const nuevoUsuarioId = resultado.insertId;
+
+    // 4. Generar Token JWT automático
+    const token = jwt.sign(
+      { id: nuevoUsuarioId, email, nombre_empresa },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.status(201).json({
+      mensaje: 'Registro exitoso',
+      token,
+      usuario: { id: nuevoUsuarioId, nombre_empresa, email, tipo_empresa }
+    });
+  } catch (error) {
+    console.error('Error en registro:', error);
+    res.status(500).json({ mensaje: 'Error interno del servidor al registrar usuario.' });
+  }
+});
+
+// ==========================================
 // RUTAS DE PLANTILLAS VISUALES
 // ==========================================
 app.post('/api/plantillas', verificarToken, async (req, res) => {
   const { configuracion } = req.body;
-  const usuario_id = req.usuario.id; // Sacamos el ID del token de seguridad
+  const usuario_id = req.usuario.id;
 
   try {
-    // Si ya existe la actualiza, si no, la crea (magia de MySQL)
     const query = `
       INSERT INTO plantillas (usuario_id, configuracion) 
       VALUES (?, ?) 
       ON DUPLICATE KEY UPDATE configuracion = ?
     `;
     
-    // Convertimos el arreglo JSON a texto plano para guardarlo seguro
     const configTexto = JSON.stringify(configuracion);
-    
     await pool.query(query, [usuario_id, configTexto, configTexto]);
     
     res.json({ status: 'success', message: 'Plantilla guardada correctamente' });
@@ -85,43 +125,29 @@ app.post('/api/plantillas', verificarToken, async (req, res) => {
   }
 });
 
-// --- RUTA PROTEGIDA (Solo para usuarios logeados) ---
+app.get('/api/plantillas', verificarToken, async (req, res) => {
+  const usuario_id = req.usuario.id; 
+  try {
+    const [rows] = await pool.query('SELECT configuracion FROM plantillas WHERE usuario_id = ?', [usuario_id]);
+    
+    if (rows.length > 0) {
+      res.json({ status: 'success', data: JSON.parse(rows[0].configuracion) });
+    } else {
+      res.json({ status: 'empty' });
+    }
+  } catch (error) {
+    console.error('Error al cargar plantilla:', error);
+    res.status(500).json({ status: 'error', message: 'Error al cargar diseño' });
+  }
+});
+
+// --- RUTA PROTEGIDA ---
 app.get('/api/sistema/privado', verificarToken, (req, res) => {
     res.json({
         status: 'success',
         message: '¡Bienvenido a la zona VIP de GrandInvoice!',
         usuarioAutorizado: req.usuario
     });
-});
-
-// --- RUTA: Registro de Usuarios ---
-app.post('/api/usuarios/registro', async (req, res) => {
-    try {
-        const { nombre, email, password } = req.body;
-
-        const [usuariosExistentes] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [email]);
-        if (usuariosExistentes.length > 0) {
-            return res.status(400).json({ status: 'error', message: 'El correo electrónico ya está en uso' });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const [resultado] = await pool.query(
-            'INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)',
-            [nombre, email, hashedPassword]
-        );
-
-        res.status(201).json({ 
-            status: 'success', 
-            message: '¡Usuario registrado exitosamente!',
-            userId: resultado.insertId 
-        });
-
-    } catch (error) {
-        console.error('Error al registrar usuario:', error);
-        res.status(500).json({ status: 'error', message: 'Error interno del servidor al registrar' });
-    }
 });
 
 // --- RUTA: Iniciar Sesión (Login) ---
@@ -142,7 +168,7 @@ app.post('/api/usuarios/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: usuario.id, rol: usuario.rol },
+            { id: usuario.id, email: usuario.email, nombre_empresa: usuario.nombre_empresa },
             process.env.JWT_SECRET,
             { expiresIn: '8h' }
         );
@@ -151,7 +177,7 @@ app.post('/api/usuarios/login', async (req, res) => {
             status: 'success',
             message: '¡Inicio de sesión exitoso!',
             token,
-            usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol }
+            usuario: { id: usuario.id, nombre_empresa: usuario.nombre_empresa, email: usuario.email, tipo_empresa: usuario.tipo_empresa }
         });
 
     } catch (error) {
@@ -160,7 +186,7 @@ app.post('/api/usuarios/login', async (req, res) => {
     }
 });
 
-// --- RUTA: Crear un nuevo Cliente (Protegida) ---
+// --- RUTA: Crear Cliente ---
 app.post('/api/clientes', verificarToken, async (req, res) => {
     try {
         const { nombre, email, telefono, direccion } = req.body;
@@ -183,7 +209,7 @@ app.post('/api/clientes', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA: Obtener todos los Clientes (Protegida) ---
+// --- RUTA: Obtener Clientes ---
 app.get('/api/clientes', verificarToken, async (req, res) => {
     try {
         const usuario_id = req.usuario.id; 
@@ -205,25 +231,7 @@ app.get('/api/clientes', verificarToken, async (req, res) => {
     }
 });
 
-app.get('/api/plantillas', verificarToken, async (req, res) => {
-  const usuario_id = req.usuario.id; 
-  try {
-    const [rows] = await pool.query('SELECT configuracion FROM plantillas WHERE usuario_id = ?', [usuario_id]);
-    
-    if (rows.length > 0) {
-      // Tomamos el texto plano de MySQL y lo revivimos a formato JSON para React
-      res.json({ status: 'success', data: JSON.parse(rows[0].configuracion) });
-    } else {
-      // Si el cliente es nuevo y no ha guardado nada aún
-      res.json({ status: 'empty' });
-    }
-  } catch (error) {
-    console.error('Error al cargar plantilla:', error);
-    res.status(500).json({ status: 'error', message: 'Error al cargar diseño' });
-  }
-});
-
-// --- RUTA: Actualizar un Cliente (Protegida) ---
+// --- RUTA: Actualizar Cliente ---
 app.put('/api/clientes/:id', verificarToken, async (req, res) => { 
     try {
         const { id } = req.params;
@@ -246,7 +254,7 @@ app.put('/api/clientes/:id', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA: Eliminar un Cliente (Protegida) ---
+// --- RUTA: Eliminar Cliente ---
 app.delete('/api/clientes/:id', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -268,8 +276,7 @@ app.delete('/api/clientes/:id', verificarToken, async (req, res) => {
     }
 });
 
-
-// --- RUTA: Crear una nueva Factura (Protegida) ---
+// --- RUTA: Crear Factura ---
 app.post('/api/facturas', verificarToken, async (req, res) => {
     try {
         const { cliente_id, numero_factura, monto, fecha_emision } = req.body;
@@ -292,7 +299,7 @@ app.post('/api/facturas', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA: Obtener todas las Facturas (Protegida) ---
+// --- RUTA: Obtener Facturas ---
 app.get('/api/facturas', verificarToken, async (req, res) => {
     try {
         const usuario_id = req.usuario.id; 
@@ -318,7 +325,7 @@ app.get('/api/facturas', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA: Actualizar estado de la Factura (Protegida) ---
+// --- RUTA: Actualizar Estado Factura ---
 app.put('/api/facturas/:id/estado', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -345,7 +352,7 @@ app.put('/api/facturas/:id/estado', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA: Agregar un detalle/servicio a una Factura (Protegida) ---
+// --- RUTA: Agregar Detalle a Factura ---
 app.post('/api/facturas/:id/detalles', verificarToken, async (req, res) => {
     try {
         const factura_id = req.params.id; 
@@ -381,7 +388,7 @@ app.post('/api/facturas/:id/detalles', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA: Obtener una Factura individual con sus detalles (Protegida) ---
+// --- RUTA: Obtener Factura Individual ---
 app.get('/api/facturas/:id', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -404,14 +411,12 @@ app.get('/api/facturas/:id', verificarToken, async (req, res) => {
             [id]
         );
 
-        const facturaCompleta = {
-            ...facturaResult[0],
-            detalles: detalles
-        };
-
         res.json({
             status: 'success',
-            data: facturaCompleta
+            data: {
+                ...facturaResult[0],
+                detalles
+            }
         });
 
     } catch (error) {
@@ -421,8 +426,6 @@ app.get('/api/facturas/:id', verificarToken, async (req, res) => {
 });
 
 // --- MÓDULO DE PRODUCTOS ---
-
-// 1. LEER PRODUCTOS (Asegúrate de que el SELECT incluye 'stock')
 app.get('/api/productos', verificarToken, async (req, res) => {
   const usuario_id = req.usuario.id;
   try {
@@ -434,7 +437,6 @@ app.get('/api/productos', verificarToken, async (req, res) => {
   }
 });
 
-// 2. NUEVA RUTA PARA EDITAR (PUT)
 app.put('/api/productos/:id', verificarToken, async (req, res) => {
   const { codigo, nombre, precio, stock } = req.body;
   const { id } = req.params;
@@ -452,13 +454,13 @@ app.put('/api/productos/:id', verificarToken, async (req, res) => {
   }
 });
 
-// Crear un nuevo producto/servicio (Protegida)
 app.post('/api/productos', verificarToken, async (req, res) => {
     const { codigo, nombre, precio } = req.body;
+    const usuario_id = req.usuario.id;
     try {
         const [result] = await pool.query(
-            'INSERT INTO productos (codigo, nombre, precio) VALUES (?, ?, ?)',
-            [codigo, nombre, precio]
+            'INSERT INTO productos (usuario_id, codigo, nombre, precio) VALUES (?, ?, ?, ?)',
+            [usuario_id, codigo, nombre, precio]
         );
         res.status(201).json({ status: 'success', message: 'Producto creado', id: result.insertId });
     } catch (err) {
@@ -467,11 +469,11 @@ app.post('/api/productos', verificarToken, async (req, res) => {
     }
 });
 
-// Eliminar un producto (Protegida)
 app.delete('/api/productos/:id', verificarToken, async (req, res) => {
     const { id } = req.params;
+    const usuario_id = req.usuario.id;
     try {
-        await pool.query('DELETE FROM productos WHERE id = ?', [id]);
+        await pool.query('DELETE FROM productos WHERE id = ? AND usuario_id = ?', [id, usuario_id]);
         res.json({ status: 'success', message: 'Producto eliminado' });
     } catch (err) {
         console.error("🔥 Error DELETE productos:", err);
@@ -479,12 +481,11 @@ app.delete('/api/productos/:id', verificarToken, async (req, res) => {
     }
 });
 
-// --- RUTA PÚBLICA BLINDADA: Acepta ID o Número de Factura ---
+// --- RUTA PÚBLICA BLINDADA ---
 app.get('/api/facturas/publica/:param', async (req, res) => {
     try {
         const { param } = req.params;
 
-        // Buscamos si coincide con f.id O con f.numero_factura
         const [facturas] = await pool.query(
             `SELECT f.*, c.nombre AS cliente_nombre, c.email AS cliente_email, 
                     c.telefono AS cliente_telefono, c.direccion AS cliente_direccion
@@ -500,7 +501,6 @@ app.get('/api/facturas/publica/:param', async (req, res) => {
 
         const factura = facturas[0];
 
-        // Traemos los detalles utilizando el ID real recuperado
         const [detalles] = await pool.query(
             'SELECT * FROM detalles_factura WHERE factura_id = ?',
             [factura.id]
@@ -518,6 +518,8 @@ app.get('/api/facturas/publica/:param', async (req, res) => {
     }
 });
 
+// --- ARRANCAR SERVIDOR ---
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
 });

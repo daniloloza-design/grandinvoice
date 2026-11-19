@@ -9,6 +9,7 @@ import ConstructorVisual from './ConstructorVisual';
 import VistaPreviaFactura from './VistaPreviaFactura';
 import DetalleFactura from './DetalleFactura';
 import FacturaPublica from './FacturaPublica';
+import Registro from './components/Registro';
 
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -21,13 +22,18 @@ const RutaProtegida = ({ children }) => {
 export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
     window.location.href = '/login';
   };
 
   return (
     <Routes>
+      {/* RUTAS PÚBLICAS */}
       <Route path="/login" element={<Login />} />
-      
+      <Route path="/registro" element={<Registro />} />
+      <Route path="/ver-factura/:id" element={<FacturaPublica />} />
+
+      {/* RUTAS PROTEGIDAS POR TOKEN */}
       <Route path="/" element={
         <RutaProtegida>
           <Dashboard onLogout={handleLogout} />
@@ -64,22 +70,19 @@ export default function App() {
         </RutaProtegida>
       } />
 
-      {/* RUTA PARA VER DETALLE Y COBRAR FACTURA */}
       <Route path="/factura/:id" element={
         <RutaProtegida>
           <DetalleFactura />
         </RutaProtegida>
       } />
 
-      {/* RUTA PARA VISTA PREVIA / PDF */}
       <Route path="/facturas/:id/imprimir" element={
         <RutaProtegida>
           <VistaPreviaFactura />
         </RutaProtegida>
       } />
 
-      <Route path="/ver-factura/:id" element={<FacturaPublica />} />
-
+      {/* REDIRECCIÓN POR DEFECTO */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
