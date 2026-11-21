@@ -9,6 +9,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
 const ECOSISTEMAS = {
   transporte: [
     { id: 'eco-t-1', tipo: 'cabecera', titulo: '🚚 Logo y Datos de la Flota' },
@@ -42,7 +43,7 @@ const ECOSISTEMAS = {
   ]
 };
 
-function BloqueSortable({ id, titulo, alSeleccionar, estaActivo }) {
+function BloqueSortable({ id, titulo, logoUrl, alSeleccionar, estaActivo }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   
   const style = {
@@ -64,7 +65,14 @@ function BloqueSortable({ id, titulo, alSeleccionar, estaActivo }) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={() => alSeleccionar(id)}>
-      {titulo}
+      <div>{titulo}</div>
+      {logoUrl && (
+        <img 
+          src={logoUrl} 
+          alt="Logo del bloque" 
+          style={{ maxHeight: '80px', maxWidth: '220px', objectFit: 'contain', marginTop: '10px', borderRadius: '4px', border: '1px solid #ddd', padding: '4px', background: '#fff' }} 
+        />
+      )}
     </div>
   );
 }
@@ -80,18 +88,17 @@ export default function ConstructorVisual() {
   ]);
   
   const [mostrarModalEcosistemas, setMostrarModalEcosistemas] = useState(false);
-
-  const cargarEcosistema = (claveIndustria) => {
-    // Reemplaza todo el lienzo con la configuración prefabricada
-    setElementosLienzo(ECOSISTEMAS[claveIndustria]);
-    setMostrarModalEcosistemas(false);
-  };
   const [idActivo, setIdActivo] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
   const sensores = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  const cargarEcosistema = (claveIndustria) => {
+    setElementosLienzo(ECOSISTEMAS[claveIndustria]);
+    setMostrarModalEcosistemas(false);
+  };
 
   const manejarFinArrastre = (evento) => {
     const { active, over } = evento;
@@ -109,8 +116,19 @@ export default function ConstructorVisual() {
     setElementosLienzo([...elementosLienzo, { id: nuevoId, tipo, titulo: tituloBase }]);
   };
 
-  const actualizarTitulo = (nuevoTitulo) => {
-    setElementosLienzo(items => items.map(item => item.id === idActivo ? { ...item, titulo: nuevoTitulo } : item));
+  const actualizarBloque = (id, nuevosDatos) => {
+    setElementosLienzo(items => items.map(item => item.id === id ? { ...item, ...nuevosDatos } : item));
+  };
+
+  const handleSubirImagen = (e) => {
+    const file = e.target.files[0];
+    if (file && idActivo) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        actualizarBloque(idActivo, { logoUrl: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const eliminarActivo = () => {
@@ -118,7 +136,6 @@ export default function ConstructorVisual() {
     setIdActivo(null);
   };
 
-  // --- NUEVA FUNCIÓN PARA CARGAR AL INICIO ---
   useEffect(() => {
     const cargarPlantilla = async () => {
       try {
@@ -127,20 +144,17 @@ export default function ConstructorVisual() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await respuesta.json();
-        
-        // Si el servidor nos devuelve un diseño guardado, reemplazamos el predeterminado
         if (respuesta.ok && data.status === 'success') {
           setElementosLienzo(data.data);
         }
       } catch (error) {
-        console.error('Error al intentar cargar la plantilla:', error);
+        console.error('Error al cargar la plantilla:', error);
       }
     };
 
     cargarPlantilla();
-  }, []); // Los corchetes vacíos aseguran que esto solo se ejecute al abrir la pantalla
+  }, []);
 
-  // --- NUEVA FUNCIÓN PARA ENVIAR EL JSON AL BACKEND ---
   const guardarPlantilla = async () => {
     setGuardando(true);
     try {
@@ -151,7 +165,7 @@ export default function ConstructorVisual() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ configuracion: elementosLienzo }) // Enviamos el estado directo
+        body: JSON.stringify({ configuracion: elementosLienzo })
       });
       
       const data = await respuesta.json();
@@ -173,12 +187,12 @@ export default function ConstructorVisual() {
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif', backgroundColor: '#ecf0f1' }}>
       
+      {/* LATERAL IZQUIERDO: HERRAMIENTAS */}
       <div style={{ width: '250px', background: '#2c3e50', color: '#fff', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
         <button onClick={() => navigate('/')} style={{ background: 'transparent', color: '#bdc3c7', border: '1px solid #7f8c8d', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer', marginBottom: '2rem' }}>
           ⬅ Volver al Panel
         </button>
         
-        {/* EL BOTÓN DE GUARDAR */}
         <button 
           onClick={guardarPlantilla} 
           disabled={guardando}
@@ -187,7 +201,6 @@ export default function ConstructorVisual() {
           {guardando ? 'Guardando... ⏳' : '💾 Guardar Plantilla'}
         </button>
 
-        {/* BOTÓN DE ECOSISTEMAS PREDISEÑADOS */}
         <button 
           onClick={() => setMostrarModalEcosistemas(!mostrarModalEcosistemas)}
           style={{ background: '#f39c12', color: '#fff', border: 'none', padding: '1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '2rem', boxShadow: '0 4px 10px rgba(243, 156, 18, 0.3)' }}
@@ -195,7 +208,6 @@ export default function ConstructorVisual() {
           🚀 Cargar Ecosistemas
         </button>
 
-        {/* SUBMENÚ DESPLEGABLE DE INDUSTRIAS */}
         {mostrarModalEcosistemas && (
           <div style={{ background: '#1abc9c', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '0.9rem' }}>Elige tu Industria:</h4>
@@ -211,11 +223,12 @@ export default function ConstructorVisual() {
 
         <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Herramientas</h3>
         
-        <div onClick={() => agregarBloque('texto', '📝 Nuevo Texto')} style={{ background: '#34495e', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background='#3b536b'} onMouseLeave={e => e.target.style.background='#34495e'}>+ Bloque de Texto</div>
-        <div onClick={() => agregarBloque('terminos', '⚠️ Términos y Notas')} style={{ background: '#34495e', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background='#3b536b'} onMouseLeave={e => e.target.style.background='#34495e'}>+ Términos y Notas</div>
-        <div onClick={() => agregarBloque('firma', '✍️ Firma Digital')} style={{ background: '#34495e', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background='#3b536b'} onMouseLeave={e => e.target.style.background='#34495e'}>+ Firma Digital</div>
+        <div onClick={() => agregarBloque('texto', '📝 Nuevo Texto')} style={{ background: '#34495e', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem', cursor: 'pointer' }}>+ Bloque de Texto</div>
+        <div onClick={() => agregarBloque('terminos', '⚠️ Términos y Notas')} style={{ background: '#34495e', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem', cursor: 'pointer' }}>+ Términos y Notas</div>
+        <div onClick={() => agregarBloque('firma', '✍️ Firma Digital')} style={{ background: '#34495e', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem', cursor: 'pointer' }}>+ Firma Digital</div>
       </div>
 
+      {/* ÁREA CENTRAL: HOJA A4 */}
       <div style={{ flex: 1, padding: '2rem', display: 'flex', justifyContent: 'center', overflowY: 'auto' }}>
         <div style={{ width: '100%', maxWidth: '800px', background: '#fff', padding: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', borderRadius: '4px', minHeight: '1000px' }}>
           <h2 style={{ color: '#bdc3c7', textAlign: 'center', marginBottom: '2rem', fontWeight: '400' }}>Área de Diseño A4</h2>
@@ -227,6 +240,7 @@ export default function ConstructorVisual() {
                   key={bloque.id} 
                   id={bloque.id} 
                   titulo={bloque.titulo} 
+                  logoUrl={bloque.logoUrl}
                   alSeleccionar={setIdActivo}
                   estaActivo={idActivo === bloque.id}
                 />
@@ -236,23 +250,59 @@ export default function ConstructorVisual() {
         </div>
       </div>
 
+      {/* LATERAL DERECHO: PROPIEDADES */}
       <div style={{ width: '300px', background: '#fff', borderLeft: '1px solid #bdc3c7', padding: '1.5rem' }}>
         <h3 style={{ color: '#2c3e50', margin: '0 0 1.5rem 0' }}>Propiedades</h3>
-        
+
         {bloqueSeleccionado ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ background: '#ebf5fb', padding: '0.8rem', borderRadius: '6px', color: '#2980b9', fontSize: '0.9rem', fontWeight: 'bold' }}>
-              Editando: {bloqueSeleccionado.tipo}
+              Editando: {bloqueSeleccionado.id}
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#34495e', fontSize: '0.9rem' }}>Texto del bloque</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#34495e', fontSize: '0.9rem' }}>
+                Texto del bloque
+              </label>
               <input 
                 type="text" 
-                value={bloqueSeleccionado.titulo} 
-                onChange={(e) => actualizarTitulo(e.target.value)}
+                value={bloqueSeleccionado.titulo || ''} 
+                onChange={(e) => actualizarBloque(bloqueSeleccionado.id, { titulo: e.target.value })}
                 style={{ width: '100%', padding: '0.8rem', borderRadius: '6px', border: '1px solid #bdc3c7', boxSizing: 'border-box' }}
               />
+            </div>
+
+            {/* SECCIÓN DE SUBIDA Y EDICIÓN DE LOGO */}
+            <div style={{ padding: '10px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #dfe6e9' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#34495e', fontSize: '0.85rem' }}>
+                🖼️ Logo / Imagen del Bloque
+              </label>
+              
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleSubirImagen}
+                style={{ width: '100%', marginBottom: '10px', fontSize: '0.8rem' }}
+              />
+
+              <input
+                type="text"
+                placeholder="O pega URL de la imagen..."
+                value={bloqueSeleccionado.logoUrl || ''}
+                onChange={(e) => actualizarBloque(bloqueSeleccionado.id, { logoUrl: e.target.value })}
+                style={{ width: '100%', padding: '0.6rem', borderRadius: '4px', border: '1px solid #bdc3c7', fontSize: '0.8rem', boxSizing: 'border-box' }}
+              />
+
+              {bloqueSeleccionado.logoUrl && (
+                <div style={{ marginTop: '10px', textAlign: 'center', background: '#fff', padding: '5px', borderRadius: '6px', border: '1px solid #eee' }}>
+                  <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', color: '#7f8c8d' }}>Vista previa:</p>
+                  <img 
+                    src={bloqueSeleccionado.logoUrl} 
+                    alt="Logo Seleccionado" 
+                    style={{ maxHeight: '70px', maxWidth: '100%', objectFit: 'contain' }} 
+                  />
+                </div>
+              )}
             </div>
 
             <button 
@@ -264,7 +314,7 @@ export default function ConstructorVisual() {
           </div>
         ) : (
           <p style={{ color: '#7f8c8d', fontSize: '0.95rem', background: '#f8f9fa', padding: '1rem', borderRadius: '8px', border: '1px dashed #bdc3c7' }}>
-            👆 Haz clic en un bloque del lienzo para editar sus propiedades.
+            👆 Haz clic en un bloque del lienzo para editar sus propiedades y subir tu logo.
           </p>
         )}
       </div>

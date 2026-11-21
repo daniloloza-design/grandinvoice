@@ -31,6 +31,15 @@ const Registro = ({ onLoginSuccess }) => {
     }
   ];
 
+  const generarPasswordSegura = () => {
+    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+    let nuevaPass = '';
+    for (let i = 0; i < 14; i++) {
+      nuevaPass += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    }
+    setFormData(prev => ({ ...prev, password: nuevaPass }));
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -57,7 +66,6 @@ const Registro = ({ onLoginSuccess }) => {
         throw new Error(data.mensaje || 'Error al crear la cuenta');
       }
 
-      // Guardar token e ingresar al sistema
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
       
@@ -75,7 +83,6 @@ const Registro = ({ onLoginSuccess }) => {
 
   return (
     <div style={styles.container}>
-      {/* Estilos dinámicos para animación de luces neón */}
       <style>{`
         @keyframes neonPulse {
           0%, 100% { box-shadow: 0 0 15px #00f0ff, 0 0 30px #00f0ff; }
@@ -109,7 +116,7 @@ const Registro = ({ onLoginSuccess }) => {
             <input
               type="text"
               name="nombre_empresa"
-              placeholder="Ej. Correa Trucking / Finktec"
+              placeholder="Ej. Mi Negocio Express"
               value={formData.nombre_empresa}
               onChange={handleChange}
               required
@@ -130,10 +137,28 @@ const Registro = ({ onLoginSuccess }) => {
             />
           </div>
 
+          {/* CAMPO CONTRASEÑA CON GENERADOR AUTOMÁTICO */}
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Contraseña</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={styles.label}>Contraseña</label>
+              <button
+                type="button"
+                onClick={generarPasswordSegura}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#00f0ff',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  textDecoration: 'underline'
+                }}
+              >
+                ⚡ Generar segura
+              </button>
+            </div>
             <input
-              type="password"
+              type="text"
               name="password"
               placeholder="••••••••••••"
               value={formData.password}
@@ -143,7 +168,6 @@ const Registro = ({ onLoginSuccess }) => {
             />
           </div>
 
-          {/* Selector interactivo de tipo de empresa */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Selecciona tu Perfil de Facturación</label>
             <div style={styles.gridTipos}>
@@ -182,7 +206,6 @@ const Registro = ({ onLoginSuccess }) => {
   );
 };
 
-// Estilos Neón Synthwave 80s
 const styles = {
   container: {
     minHeight: '100vh',

@@ -8,7 +8,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 app.use(cors());
-app.use(express.json());
+// POR ESTA (Aumenta el límite a 2 MB):
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
 // --- PUENTE A BANAHOSTING ---
 const pool = mysql.createPool({
@@ -516,6 +518,58 @@ app.get('/api/facturas/publica/:param', async (req, res) => {
         console.error('Error al obtener factura pública:', error);
         res.status(500).json({ status: 'error', message: 'Error en el servidor' });
     }
+});
+
+// --- RUTA: Dar de baja la cuenta de usuario (Protegida) ---
+app.delete('/api/usuarios/me', verificarToken, async (req, res) => {
+  const usuario_id = req.usuario.id;
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Eliminar facturas y clientes vinculados
+    await connection.query('DELETE FROM detalles_factura WHERE factura_id IN (SELECT id FROM facturas WHERE usuario_id = ?)', [usuario_id]);
+    await connection.query('DELETE FROM facturas WHERE usuario_id = ?', [usuario_id]);
+    await connection.query('DELETE FROM clientes WHERE usuario_id = ?', [usuario_id]);
+    await connection.query('DELETE FROM productos WHERE usuario_id = ?', [usuario_id]);
+    await connection.query('DELETE FROM plantillas WHERE usuario_id = ?', [usuario_id]);
+
+    // 2. Eliminar cuenta principal de usuario
+    const [resultado] = await connection.query('DELETE FROM usuarios WHERE id = ?', [usuario_id]);
+
+    await connection.commit();
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
+    }
+
+    res.json({ status: 'success', message: 'Cuenta y datos asociados eliminados correctamente.' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error al dar de baja la cuenta:', error);
+    res.status(500).json({ status: 'error', message: 'Error interno al procesar la baja de la cuenta' });
+  } finally {
+    connection.release();
+  }
+});
+
+// --- RUTA: Actualizar Logo y Perfil de Empresa (Protegida) ---
+app.put('/api/usuarios/perfil', verificarToken, async (req, res) => {
+  const usuario_id = req.usuario.id;
+  const { nombre_empresa, logo_url, tipo_empresa } = req.body;
+
+  try {
+    await pool.query(
+      'UPDATE usuarios SET nombre_empresa = COALESCE(?, nombre_empresa), logo_url = COALESCE(?, logo_url), tipo_empresa = COALESCE(?, tipo_empresa) WHERE id = ?',
+      [nombre_empresa, logo_url, tipo_empresa, usuario_id]
+    );
+
+    res.json({ status: 'success', message: 'Perfil de empresa actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar perfil:', error);
+    res.status(500).json({ status: 'error', message: 'Error al actualizar datos de empresa' });
+  }
 });
 
 // --- ARRANCAR SERVIDOR ---
